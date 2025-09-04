@@ -1,11 +1,12 @@
 /*
 ===================================
-DDL Bronze table 
+DDL Bronze table (Source -> bronze)
 ===================================
-
+	This procedure loads raw data into the bronze layer
+	It perfoms the following actions:
+		- Truncates any existing bronze table before loading data
+		- Uses the BULK INSERT to load the raw data from CSV file
 */
-
-
 
 CREATE OR ALTER PROCEDURE bronze.load_bronze AS
 BEGIN

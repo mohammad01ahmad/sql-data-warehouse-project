@@ -1,0 +1,143 @@
+USE DataWarehouse;
+
+/*
+=========================================================================================
+
+EDA on gold dataset
+
+=========================================================================================
+*/
+
+-- Explore all objects in the database
+SELECT * FROM INFORMATION_SCHEMA.TABLES
+
+-- Explore all columns in the database
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+
+-- Dimension exploration 
+SELECT DISTINCT category, sub_category, product_name
+FROM gold.dim_product
+
+-- Report to show all key metrics of the business 
+SELECT 'Total Sales' AS measure_name, SUM(sales_amount) AS measure_value FROM gold.fact_sales
+UNION ALL 
+SELECT 'Total Quantity' AS measure_name, SUM(quantity) AS measure_value FROM gold.fact_sales
+UNION ALL 
+SELECT 'Average Price' AS measure_name, AVG(price) AS measure_value FROM gold.fact_sales
+UNION ALL 
+SELECT 'Total Nr. Orders' AS measure_name, COUNT(DISTINCT order_number) AS measure_value FROM gold.fact_sales
+UNION ALL 
+SELECT 'Total Nr. Products' AS measure_name, COUNT(DISTINCT product_name) AS measure_value FROM gold.dim_product
+UNION ALL 
+SELECT 'Total Nr. Customers' AS measure_name, COUNT(DISTINCT customer_key) AS measure_value FROM gold.dim_customers
+
+-- Total customers by countries 
+SELECT country, COUNT(customer_id) as total_customers
+FROM gold.dim_customers
+GROUP BY country 
+ORDER BY total_customers DESC
+
+-- Total customers by gender 
+SELECT gender, COUNT(customer_id) as total_customers 
+FROM gold.dim_customers
+GROUP BY gender
+ORDER BY total_customers DESC
+
+-- Total products by category 
+SELECT category, COUNT(product_id) as total_products
+FROM gold.dim_product
+GROUP BY category
+ORDER BY total_products DESC
+
+-- Average costs in each category
+SELECT AVG(cost), category
+FROM gold.dim_product
+GROUP BY category
+
+-- Total revenue generated for each category
+SELECT 
+p.category,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f 
+LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+GROUP BY p.category
+ORDER BY total_revenue DESC
+
+-- Most revenue gained from each customers 
+SELECT 
+c.customer_key,
+c.first_name,
+c.last_name,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f
+LEFT JOIN gold.dim_customers c ON f.customer_key = c.customer_key
+GROUP BY c.customer_key, c.first_name, c.last_name
+ORDER BY total_revenue DESC
+
+-- Most revenue gained from each country
+SELECT 
+c.country,
+SUM(sales_amount) total_revenue
+FROM gold.fact_sales f 
+LEFT JOIN gold.dim_customers c ON f.customer_key = c.customer_key
+GROUP BY c.country
+ORDER BY total_revenue DESC
+
+-- Distribution of sold items each country
+SELECT 
+c.country,
+SUM(f.quantity) total_sold_items
+FROM gold.fact_sales f 
+LEFT JOIN gold.dim_customers c ON f.customer_key = c.customer_key
+GROUP BY c.country
+ORDER BY total_sold_items DESC
+
+-- Which 5 products generate the highest revenue 
+SELECT TOP 5
+p.product_name,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f
+LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+GROUP BY p.product_name
+ORDER BY total_revenue DESC
+
+-- Which 5 products generate the lowest revenue 
+SELECT TOP 5
+p.product_name,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f
+LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+GROUP BY p.product_name
+ORDER BY total_revenue 
+
+-- Which 5 products generate the highest revenue (using Window function)
+SELECT TOP 5
+ROW_NUMBER () OVER(ORDER BY SUM(f.sales_amount) DESC) rank_products,
+p.product_name,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f
+LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+GROUP BY p.product_name 
+
+SELECT * 
+FROM(
+	SELECT TOP 5
+	ROW_NUMBER () OVER(ORDER BY SUM(f.sales_amount) DESC) rank_products,
+	p.product_name,
+	SUM(f.sales_amount) total_revenue
+	FROM gold.fact_sales f
+	LEFT JOIN gold.dim_product p ON f.product_key = p.product_key
+	GROUP BY p.product_name 
+)t WHERE rank_products <=5
+
+-- Top 10 customers who have generated the highest revenue
+SELECT TOP 10
+c.customer_key,
+c.first_name,
+c.last_name,
+SUM(f.sales_amount) total_revenue
+FROM gold.fact_sales f
+LEFT JOIN gold.dim_customers c ON f.customer_key = c.customer_key
+GROUP BY c.customer_key, c.first_name, c.last_name
+ORDER BY total_revenue DESC
+
